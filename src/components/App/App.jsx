@@ -1,40 +1,34 @@
-import React, { Component } from 'react';
+import { useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
 import { Container, Title, SubTitle, EmptyContactListText } from './App.styled';
 import ContactForm from 'components/ContactForm';
 import Filter from 'components/Filter';
 import ContactList from 'components/ContactList';
 
-export default class App extends Component {
-  state = {
-    contacts: [
-      { id: 'id-1', name: 'Rosie Simpson', number: '459-12-56' },
-      { id: 'id-2', name: 'Hermione Kline', number: '443-89-12' },
-      { id: 'id-3', name: 'Eden Clements', number: '645-17-79' },
-      { id: 'id-4', name: 'Annie Copeland', number: '227-91-26' },
-    ],
-    filter: '',
-  };
+const initialContacts = [
+  { id: 'id-1', name: 'Rosie Simpson', number: '459-12-56' },
+  { id: 'id-2', name: 'Hermione Kline', number: '443-89-12' },
+  { id: 'id-3', name: 'Eden Clements', number: '645-17-79' },
+  { id: 'id-4', name: 'Annie Copeland', number: '227-91-26' },
+];
 
+const App = () => {
   //* завантаження контактів з локального сховища в разі їх наявності
-  componentDidMount() {
-    const contacts = localStorage.getItem('contacts');
-    const parsedContacts = JSON.parse(contacts);
-    if (parsedContacts) {
-      this.setState({ contacts: parsedContacts });
-    }
-  }
+  const [contacts, setContacts] = useState(() => {
+    return (
+      JSON.parse(window.localStorage.getItem('contacts')) ?? initialContacts
+    );
+  });
+  const [filter, setFilter] = useState('');
 
   //* збереження до локального сховища актуального стану контактів при кожній зміні
-  componentDidUpdate(prevProps, prevState) {
-    if (this.state.contacts !== prevState.contacts) {
-      localStorage.setItem('contacts', JSON.stringify(this.state.contacts));
-    }
-  }
+  useEffect(() => {
+    return window.localStorage.setItem('contacts', JSON.stringify(contacts));
+  }, [contacts]);
 
   //* додавання нового контакту з перевіркою на наявність контактів з таким ім'ям
-  addContact = contact => {
-    const isInContacts = this.state.contacts.some(
+  const addContact = contact => {
+    const isInContacts = contacts.some(
       ({ name }) => name.toLowerCase() === contact.name.toLowerCase()
     );
     if (isInContacts) {
@@ -42,23 +36,19 @@ export default class App extends Component {
       return;
     }
 
-    const newContact = {
-      id: nanoid(),
-      ...contact,
-    };
-    this.setState(({ contacts }) => ({
-      contacts: [newContact, ...contacts],
-    }));
+    setContacts(prevContacts => [
+      ...prevContacts,
+      { id: nanoid(), ...contact },
+    ]);
   };
 
   //* фільтр пошуку за ім'ям
   //обробник зміни значення поля вводу фільтра
-  changeFilter = e => {
-    this.setState({ filter: e.currentTarget.value });
+  const changeFilter = e => {
+    setFilter(e.target.value.trim());
   };
   //функція для відображення знайдених за фільтром контактів
-  getFoundContacts = () => {
-    const { contacts, filter } = this.state;
+  const getFoundContacts = () => {
     const normalizeFilter = filter.toLowerCase();
     return contacts.filter(contact =>
       contact.name.toLowerCase().includes(normalizeFilter)
@@ -66,35 +56,30 @@ export default class App extends Component {
   };
 
   //* видалення контакту
-  deleteContact = contactId => {
-    this.setState(({ contacts }) => ({
-      contacts: contacts.filter(({ id }) => id !== contactId),
-    }));
+  const deleteContact = contactId => {
+    setContacts(prevContacts =>
+      prevContacts.filter(({ id }) => id !== contactId)
+    );
   };
 
-  render() {
-    const { contacts, filter } = this.state;
+  const foundContacts = getFoundContacts();
 
-    const foundContacts = this.getFoundContacts();
+  return (
+    <Container>
+      <Title children="Phonebook" />
+      <ContactForm onAddContact={addContact} />
+      <SubTitle children="Contacts" />
 
-    return (
-      <Container>
-        <Title children="Phonebook" />
-        <ContactForm onAddContact={this.addContact} />
-        <SubTitle children="Contacts" />
+      {contacts.length > 0 ? (
+        //* Фільтр рендеримо тільки, якщо масив контактів не порожній
+        <Filter value={filter} onChange={changeFilter} />
+      ) : (
+        <EmptyContactListText children="There are no contacts." />
+      )}
 
-        {contacts.length > 0 ? (
-          //* Фільтр рендеримо тільки, якщо масив контактів не порожній
-          <Filter value={filter} onChange={this.changeFilter} />
-        ) : (
-          <EmptyContactListText children="There are no contacts." />
-        )}
+      <ContactList contacts={foundContacts} onDeleteContact={deleteContact} />
+    </Container>
+  );
+};
 
-        <ContactList
-          contacts={foundContacts}
-          onDeleteContact={this.deleteContact}
-        />
-      </Container>
-    );
-  }
-}
+export default App;
